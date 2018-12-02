@@ -8,14 +8,18 @@
 #include <vector>
 #include <chrono>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 using namespace std::chrono;
 
-ExperimentalResults neutron_hybrid(float* absorbed, int n,
+ExperimentalResults neutron_hybrid(float* absorbed, long n,
 																	 const ProblemParameters& params,
 																	 int threadsPerBlock, int neutronsPerThread,
 																	 float ratio) {
-	const int n_cpu = n*ratio;
-	const int n_gpu = n-n_cpu;
+	const long n_cpu = n*ratio;
+	const long n_gpu = n-n_cpu;
 
 	std::cout << "Nombre de neutrons sur CPU: " << n_cpu << std::endl;
 	std::cout << "Nombre de neutrons sur GPU: " << n_gpu << std::endl;
@@ -23,11 +27,15 @@ ExperimentalResults neutron_hybrid(float* absorbed, int n,
 	decltype(system_clock::now()) start1, start2, finish1, finish2;
 
 	ExperimentalResults res1, res2;
+#ifdef _OPENMP
+	omp_set_nested(1);
+#endif
 	#pragma omp parallel
 	#pragma omp single
 	{
 		#pragma omp task
 		{
+			#pragma omp taskyield
 			start1 = system_clock::now();
 			res1 = neutron_gpu(absorbed, n_gpu, params, threadsPerBlock, neutronsPerThread);
 			finish1 = system_clock::now();
@@ -53,7 +61,7 @@ ExperimentalResults neutron_hybrid(float* absorbed, int n,
 	res.absorbed = absorbed;
 
 	std::vector<ExperimentalResults> to_reduce({res1, res2});
-	std::vector<int> sizes({n_gpu, n_cpu});
+	std::vector<long> sizes({n_gpu, n_cpu});
 	compaction(res, sizes, to_reduce);
 	auto finish3 = system_clock::now();
 

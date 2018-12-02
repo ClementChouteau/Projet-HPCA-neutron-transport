@@ -3,7 +3,7 @@
 
 #include "neutron.h"
 
-ExperimentalResults neutron_gpu(float* absorbed, int n,
+ExperimentalResults neutron_gpu(float* absorbed, long n,
 																const ProblemParameters& params,
 																int threadsPerBlock, int neutronsPerThread);
 

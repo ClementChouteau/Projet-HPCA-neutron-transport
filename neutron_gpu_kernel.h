@@ -8,13 +8,13 @@
 #include <curand_kernel.h>
 
 __global__
-void neutron_seq_kernel(int n,
+void neutron_seq_kernel(long n,
 						int neutronsPerThread,
 						const ProblemParameters* params,
 						float* absorbed,
-						int* d_r,
-						int* d_b,
-						int* d_t,
+						long* d_r,
+						long* d_b,
+						long* d_t,
 						unsigned long long* seeds,
 						curandState* states);
 

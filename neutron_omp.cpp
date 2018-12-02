@@ -15,7 +15,7 @@
 
 using namespace std::chrono;
 
-ExperimentalResults neutron_omp(float* absorbed, int n, const ProblemParameters& params) {
+ExperimentalResults neutron_omp(float* absorbed, long n, const ProblemParameters& params) {
 	const auto BLOCK_SIZE = 10000;
 
 	ExperimentalResults res;
@@ -26,7 +26,7 @@ ExperimentalResults neutron_omp(float* absorbed, int n, const ProblemParameters&
 
 	std::vector<ExperimentalResults> to_reduce;
 
-	std::vector<std::mt19937> rngs;
+	std::vector< std::mt19937* > rngs;
 	#pragma omp parallel
 	#pragma omp single
 	{
@@ -35,21 +35,20 @@ ExperimentalResults neutron_omp(float* absorbed, int n, const ProblemParameters&
 		#ifdef _OPENMP
 		t = omp_get_num_threads();
 		#endif
-		rngs = std::vector<std::mt19937>(t);
-		for (auto& rng : rngs)
-			rng.seed(std::random_device()());
+		rngs = std::vector< std::mt19937* >(t);
+		fill(rngs.begin(), rngs.end(), nullptr);
 
-		int i=0;
+		long i=0;
 		while (i<n) {
 			// Distributing work (that we know)
 			while (i<n) {
-				int to_do;
+				long to_do;
 				ExperimentalResults cur_res;
-				int buffer_size = BLOCK_SIZE;
+				long buffer_size = BLOCK_SIZE;
 				#pragma omp critical (scheduling)
 				{
 					// Work to be done
-					const int work_remainder = n-i;
+					const long work_remainder = n-i;
 					to_do = (work_remainder>=BLOCK_SIZE) ? BLOCK_SIZE : work_remainder;
 
 					// Buffer to write results
@@ -73,7 +72,13 @@ ExperimentalResults neutron_omp(float* absorbed, int n, const ProblemParameters&
 					#ifdef _OPENMP
 					num = omp_get_thread_num();
 					#endif
-					auto& rng = rngs[num];
+
+					// lazy and NUMA aware allocations
+					if (rngs[num] == nullptr) {
+						rngs[num] = new std::mt19937();
+						rngs[num]->seed(std::random_device()());
+					}
+					auto& rng = *rngs[num];
 					const auto call_res = neutron_cpu_kernel(to_do, params, cur_res.absorbed, buffer_size, rng);
 
 					// Given work done partially
@@ -120,7 +125,7 @@ ExperimentalResults neutron_omp(float* absorbed, int n, const ProblemParameters&
 		return l.absorbed < r.absorbed;
 	};
 	std::sort(to_reduce.begin(), to_reduce.end(), compare_by_addr);
-	compaction(res, std::vector<int>(to_reduce.size(), BLOCK_SIZE), to_reduce);
+	compaction(res, std::vector<long>(to_reduce.size(), BLOCK_SIZE), to_reduce);
 	const auto finish = std::chrono::system_clock::now();
 
 	std::cout << "Temps réduction post OpenMP task: " << std::chrono::duration_cast<std::chrono::milliseconds>(finish - start).count()/1000. << " sec" << std::endl;

@@ -5,6 +5,12 @@
  */
 #include <chrono>
 #include <iostream>
+#include <vector>
+#include <algorithm>
+
+#ifdef SAVE
+#include <fstream>
+#endif
 
 #include "neutron.h"
 #if   defined (NEUTRON_SEQ)
@@ -49,7 +55,7 @@ int main(int argc, char *argv[]) {
 	// Default values
 	ProblemParameters params;
 	params.h = 1.0;
-	int n = 500000000; // number of neutrons
+	long n = 500000000; // number of neutrons
 	params.c_c = 0.5;
 	params.c_s = 0.5;
 
@@ -63,7 +69,7 @@ int main(int argc, char *argv[]) {
 
 	// Retrieving parameters
 	if (argc > 1) params.h = std::atof(argv[1]);
-	if (argc > 2) n = std::atoi(argv[2]);
+	if (argc > 2) n = std::atol(argv[2]);
 	if (argc > 3) params.c_c = std::atof(argv[3]);
 	if (argc > 4) params.c_s = std::atof(argv[4]);
 	if (argc > 5) threadsPerBlock = std::atoi(argv[5]);
@@ -78,46 +84,58 @@ int main(int argc, char *argv[]) {
 	std::cout << "C_c : " << params.c_c << std::endl;
 	std::cout << "C_s : " << params.c_s << std::endl;
 
+	std::vector<float> absorbed(n);
+#ifdef TEST
+	std::fill(absorbed.begin(), absorbed.end(), NO_VAL);
+#endif
+
 	const auto start = system_clock::now();
 #if   defined (NEUTRON_SEQ)
-	const ExperimentalResults res = neutron_seq(new float[n], n, params);
+	const ExperimentalResults res = neutron_seq(absorbed.data(), n, params);
 #elif defined (NEUTRON_OMP)
-	const ExperimentalResults res = neutron_omp(new float[n], n, params);
+	const ExperimentalResults res = neutron_omp(absorbed.data(), n, params);
 #elif defined (NEUTRON_GPU)
-	const ExperimentalResults res = neutron_gpu(new float[n], n, params, threadsPerBlock, neutronsPerThread);
+	const ExperimentalResults res = neutron_gpu(absorbed.data(), n, params, threadsPerBlock, neutronsPerThread);
 #elif defined (NEUTRON_HYB)
-	const ExperimentalResults res = neutron_hybrid(new float[n], n, params, threadsPerBlock, neutronsPerThread, ratio);
+	const ExperimentalResults res = neutron_hybrid(absorbed.data(), n, params, threadsPerBlock, neutronsPerThread, ratio);
 #endif
 	const auto finish = system_clock::now();
+
+#ifdef TEST
+	long b = n - std::count(absorbed.begin(), absorbed.end(), NO_VAL);
+	if (b != res.b) {
+		std::cout << "TEST FAILURE" << std::endl;
+		exit(1);
+	}
+	std::cout << "TEST SUCESS" << std::endl;
+#endif
 
 	if (res.r+res.b+res.t != n)
 		exit(1);
 
 	std::cout << std::endl;
-	std::cout << "Pourcentage des neutrons refléchis : " << (float) res.r / (float) n << std::endl;
-	std::cout << "Pourcentage des neutrons absorbés : " << (float) res.b / (float) n << std::endl;
-	std::cout << "Pourcentage des neutrons transmis : " << (float) res.t / (float) n << std::endl;
+	std::cout << "Pourcentage des neutrons refléchis : " << (double) res.r / (double) n << std::endl;
+	std::cout << "Pourcentage des neutrons absorbés : " << (double) res.b / (double) n << std::endl;
+	std::cout << "Pourcentage des neutrons transmis : " << (double) res.t / (double) n << std::endl;
 
 	const auto duration = duration_cast<milliseconds>(finish - start).count()/1000.;
 	std::cout << std::endl;
 	std::cout << "Temps total de calcul: " << duration << " sec" << std::endl;
 	std::cout << "Millions de neutrons /s: " << (double) n / ((duration)*1e6) << std::endl;
 
-	//  // ouverture du fichier pour ecrire les positions des neutrons absorbés
-	//  FILE *f_handle = fopen(OUTPUT_FILE, "w");
-	//  if (!f_handle) {
-	//	fprintf(stderr, "Cannot open " OUTPUT_FILE "\n");
-	//	exit(EXIT_FAILURE);
-	//  }
+#ifdef SAVE
+	std::ofstream file(OUTPUT_FILE);
+	if (file.is_open()) {
+		for (int i=0; i<res.b; i++)
+			file << res.absorbed[i] << std::endl;
+	}
+	else {
+		std::cerr << "Cannot open " << OUTPUT_FILE << std::endl;
+		exit(1);
+	}
 
-	//  for (int j = 0; j < res.b; j++)
-	//	fprintf(f_handle, "%f\n", res.absorbed[j]);
-
-	//  // fermeture du fichier
-	//  fclose(f_handle);
-	//  printf("Result written in " OUTPUT_FILE "\n");
-
-	delete res.absorbed;
+	std::cout << "Result written in " << OUTPUT_FILE << std::endl;
+#endif
 
 	return 0;
 }

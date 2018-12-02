@@ -9,6 +9,10 @@
 #include <curand_kernel.h>
 #include <thrust/remove.h>
 
+#if __has_include ( "thrust/device_ptr.h" )
+#include <thrust/device_ptr.h>
+#endif
+
 #include "neutron.h"
 
 #include <utility>
@@ -23,15 +27,16 @@ using namespace std::chrono;
 /**
  * Retourne le quotient entier superieur ou egal a "a/b".
  */
-static int iDivUp(int a, int b){
+template<typename T>
+inline static T iDivUp(T a, T b){
 	return ((a % b != 0) ? (a / b + 1) : (a / b));
 }
 
-ExperimentalResults neutron_gpu_caller(float* absorbed, int n,
+ExperimentalResults neutron_gpu_caller(float* absorbed, long n,
 																			 const ProblemParameters& params,
 																			 const std::vector<unsigned long long>& seeds,
 																			 int threadsPerBlock, int neutronsPerThread) {
-	const auto threads = threadsPerBlock*iDivUp(n, threadsPerBlock*neutronsPerThread);
+	const auto threads = threadsPerBlock*iDivUp<long>(n, threadsPerBlock*neutronsPerThread);
 
 	auto t1 = system_clock::now();
 	unsigned long long* d_seeds;
@@ -46,10 +51,10 @@ ExperimentalResults neutron_gpu_caller(float* absorbed, int n,
 	float* d_absorbed;
 	cudaMalloc((void**)&d_absorbed, n*sizeof(float));
 
-	int* d_r, * d_b, * d_t;
-	cudaMalloc((void**)&d_r, threads*sizeof(int));
-	cudaMalloc((void**)&d_b, threads*sizeof(int));
-	cudaMalloc((void**)&d_t, threads*sizeof(int));
+	long* d_r, * d_b, * d_t;
+	cudaMalloc((void**)&d_r, threads*sizeof(long));
+	cudaMalloc((void**)&d_b, threads*sizeof(long));
+	cudaMalloc((void**)&d_t, threads*sizeof(long));
 
 	curandState* d_states;
 	cudaMalloc((void**)&d_states, threads*sizeof(curandState));
@@ -57,7 +62,7 @@ ExperimentalResults neutron_gpu_caller(float* absorbed, int n,
 	std::cout << "Temps de la copie CPU -> GPU: " << std::chrono::duration_cast<milliseconds>(t2 - t1).count()/1000. << " sec" << std::endl;
 
 	const dim3 nthreads(threadsPerBlock);
-	const dim3 nblocs(iDivUp(n, threadsPerBlock*neutronsPerThread));
+	const dim3 nblocs(iDivUp<long>(n, threadsPerBlock*neutronsPerThread));
 	std::cout << "Nombre de blocs GPU: " << nblocs.x << std::endl;
 	std::cout << "Nombre de threads par bloc: " << nthreads.x << std::endl;
 	std::cout << "Mémoire utilisée: " << (n*4.)/(1024.*1024.) << "Mo" << std::endl;
@@ -65,7 +70,6 @@ ExperimentalResults neutron_gpu_caller(float* absorbed, int n,
 	auto t3 = system_clock::now();
 	neutron_seq_kernel<<<nthreads, nblocs>>>(n, neutronsPerThread, d_params, d_absorbed,
 																					 d_r, d_b, d_t, d_seeds, d_states);
-
 	cudaFree(d_seeds);
 
 	// reductions
@@ -81,7 +85,7 @@ ExperimentalResults neutron_gpu_caller(float* absorbed, int n,
 	// retrieving results
 	cudaDeviceSynchronize();
 	auto t4 = system_clock::now();
-	std::cout << "Temps du kernel + reductions: " << std::chrono::duration_cast<milliseconds>(t2 - t1).count()/1000. << " sec" << std::endl;
+	std::cout << "Temps du kernel + reductions: " << std::chrono::duration_cast<milliseconds>(t4 - t3).count()/1000. << " sec" << std::endl;
 
 	cudaFree(d_r);
 	cudaFree(d_b);

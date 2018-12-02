@@ -5,7 +5,7 @@
 
 // ratio is a real number in [0, 1] indicating
 // the proportion of cpu/gpu values to compute
-ExperimentalResults neutron_hybrid(float* absorbed, int n,
+ExperimentalResults neutron_hybrid(float* absorbed, long n,
 																	 const ProblemParameters& params,
 																	 int threadsPerBlock, int neutronsPerThread,
 																	 float ratio);

@@ -3,7 +3,7 @@
 
 #include "neutron.h"
 
-ExperimentalResults neutron_seq(float* absorbed, int n,
+ExperimentalResults neutron_seq(float* absorbed, long n,
 																const ProblemParameters& params);
 
 #endif // NEUTRON_SEQ_H

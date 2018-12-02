@@ -4,7 +4,7 @@
 
 #include <random>
 
-ExperimentalResults neutron_seq(float* absorbed, int n,
+ExperimentalResults neutron_seq(float* absorbed, long n,
 																const ProblemParameters& params) {
 	std::mt19937 rng;
 	rng.seed(std::random_device()());

@@ -7,8 +7,8 @@
 #include <cmath>
 
 template<typename RandomGenerator>
-ExperimentalResults neutron_cpu_kernel(int n, const ProblemParameters& params,
-																			 float* absorbed, int size,
+ExperimentalResults neutron_cpu_kernel(long n, const ProblemParameters& params,
+																			 float* absorbed, long size,
 																			 RandomGenerator& rng) {
 	ExperimentalResults res;
 	res.absorbed = absorbed;
@@ -16,8 +16,8 @@ ExperimentalResults neutron_cpu_kernel(int n, const ProblemParameters& params,
 
 	auto uniform_0_1 = std::uniform_real_distribution<float>(0., 1.);
 
-	int cpt = 0;
-	for (int i=0; i<n && cpt<size; i++) {
+	long cpt = 0;
+	for (long i=0; i<n && cpt<size; i++) {
 
 		float d = 0.0;
 		float x = 0.0;

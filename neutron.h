@@ -15,7 +15,7 @@ typedef struct {
 
 typedef struct {
 	// nombre de neutrons refléchis, absorbés et transmis
-	int r, b, t;
+	long r, b, t;
 
 	float *absorbed;
 } ExperimentalResults;

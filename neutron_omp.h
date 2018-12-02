@@ -3,7 +3,7 @@
 
 #include "neutron.h"
 
-ExperimentalResults neutron_omp(float* absorbed, int n,
+ExperimentalResults neutron_omp(float* absorbed, long n,
 																const ProblemParameters& params);
 
 #endif

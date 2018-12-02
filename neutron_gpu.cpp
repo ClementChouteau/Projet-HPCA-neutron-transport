@@ -7,11 +7,11 @@
 
 using namespace std::chrono;
 
-extern ExperimentalResults neutron_gpu_caller(float* absorbed, int n, const ProblemParameters& params,
+extern ExperimentalResults neutron_gpu_caller(float* absorbed, long n, const ProblemParameters& params,
 																							const std::vector<unsigned long long>& seeds,
 																							int threadsPerBlock, int neutronsPerThread);
 
-ExperimentalResults neutron_gpu(float* absorbed, int n,
+ExperimentalResults neutron_gpu(float* absorbed, long n,
 																const ProblemParameters& params,
 																int threadsPerBlock, int neutronsPerThread) {
 	const auto threads = n/neutronsPerThread;
