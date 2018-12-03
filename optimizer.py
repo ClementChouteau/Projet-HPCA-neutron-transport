@@ -3,6 +3,7 @@ import re
 import random
 import math
 import sys
+from threading import Timer
 
 from subprocess import DEVNULL
 
@@ -19,14 +20,16 @@ n = sys.argv[2]
 c_c = sys.argv[3]
 c_s = sys.argv[4]
 
-temps_re = re.compile('Temps du kernel \+ reductions: ([0-9.]+)')
+temps_re = re.compile('Temps total de calcul: ([0-9.]+)')
 
 best = (float('inf'), 32, 1000)
-for neutronsPerThread in gen_random_exp(1000, int(n), 10):
-	for threadsPerBlock in range(32, 512, 32):
+for threadsPerBlock in range(32, 192, 32):
+	for neutronsPerThread in gen_random_exp(1000, int(n), 10):
 		try:
-			p = subprocess.Popen(['optirun', './bin/neutron-gpu', h, n, c_c, c_s, str(threadsPerBlock), str(neutronsPerThread)], stdout=subprocess.PIPE, stderr=DEVNULL)
-			out = p.communicate()[0].decode("utf-8")
+			proc = subprocess.Popen(['optirun', './bin/neutron-gpu', h, n, c_c, c_s, str(threadsPerBlock), str(neutronsPerThread)], stdout=subprocess.PIPE, stderr=DEVNULL)
+			timer = Timer(min(best[0], 100000), proc.kill)
+			timer.start()
+			out = proc.communicate()[0].decode("utf-8")
 			t = float(temps_re.search(out).group(1))
 			(best_t, tpb, npt) = best
 			if (t < best_t):
@@ -38,5 +41,7 @@ for neutronsPerThread in gen_random_exp(1000, int(n), 10):
 			sys.exit(0)
 		except:
 			pass
+		finally:
+			timer.cancel()
 
 print(best)
