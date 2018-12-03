@@ -8,14 +8,15 @@
 #include <curand_kernel.h>
 
 __global__
-void neutron_seq_kernel(long n,
+void neutron_gpu_kernel(long n,
 						int neutronsPerThread,
 						const ProblemParameters* params,
-						float* absorbed,
-						long* d_r,
-						long* d_b,
-						long* d_t,
-						unsigned long long* seeds,
-						curandState* states);
+						unsigned long long int* d_next_absorbed,
+						float* d_absorbed,
+						unsigned long long int* d_r,
+						unsigned long long int* d_b,
+						unsigned long long int* d_t,
+						unsigned long long* d_seeds,
+						curandState* d_states);
 
 #endif // NEUTRON_GPU_KERNEL_H

@@ -29,7 +29,6 @@ void neutron_gpu_kernel(long n,
 	unsigned long long int r = 0, b = 0, t = 0;
 
 	long cpt = (blockIdx.x*blockDim.x + threadIdx.x)*neutronsPerThread;
-	auto g = coalesced_threads();
 	for (long i=0; i<neutronsPerThread; i++) {
 		if (!(cpt < n))
 			break;
@@ -64,13 +63,16 @@ void neutron_gpu_kernel(long n,
 				d = u * M_PI;
 			}
 		}
-		unsigned long long int pos;
-		if(g.thread_rank() == 0)
-			pos = atomicAdd(next_absorbed, g.size());
 
 		if (v != NO_VAL) {
+			auto g = coalesced_threads();
+			unsigned long long int pos;
+			if (g.thread_rank() == 0)
+				pos = atomicAdd(next_absorbed, g.size());
+
 			absorbed[g.shfl(pos, 0) + g.thread_rank()] = v;
 		}
+
 		cpt++;
 	}
 

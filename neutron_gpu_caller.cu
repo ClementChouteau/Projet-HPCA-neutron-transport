@@ -49,6 +49,10 @@ ExperimentalResults neutron_gpu_caller(float* absorbed, long n,
 	float* d_absorbed;
 	cudaMalloc((void**)&d_absorbed, n*sizeof(float));
 
+#ifdef TEST
+	cudaMemcpy(d_params, absorbed, n*sizeof(float), cudaMemcpyHostToDevice);
+#endif
+
 	unsigned long long int* d_r, * d_b, * d_t;
 	cudaMalloc((void**)&d_r, sizeof(unsigned long long int));
 	cudaMalloc((void**)&d_b, sizeof(unsigned long long int));
@@ -59,6 +63,7 @@ ExperimentalResults neutron_gpu_caller(float* absorbed, long n,
 
 	curandState* d_states;
 	cudaMalloc((void**)&d_states, threads*sizeof(curandState));
+	cudaDeviceSynchronize();
 	auto t2 = system_clock::now();
 	std::cout << "Temps de la copie CPU -> GPU: " << std::chrono::duration_cast<milliseconds>(t2 - t1).count()/1000. << " sec" << std::endl;
 
@@ -82,9 +87,13 @@ ExperimentalResults neutron_gpu_caller(float* absorbed, long n,
 	cudaFree(d_seeds);
 
 	ExperimentalResults res;
-	cudaMemcpy(&res.r, d_r, sizeof(unsigned long long int), cudaMemcpyDeviceToHost);
-	cudaMemcpy(&res.b, d_b, sizeof(unsigned long long int), cudaMemcpyDeviceToHost);
-	cudaMemcpy(&res.t, d_t, sizeof(unsigned long long int), cudaMemcpyDeviceToHost);
+	unsigned long long int r, b, t;
+	cudaMemcpy(&r, d_r, sizeof(unsigned long long int), cudaMemcpyDeviceToHost);
+	cudaMemcpy(&b, d_b, sizeof(unsigned long long int), cudaMemcpyDeviceToHost);
+	cudaMemcpy(&t, d_t, sizeof(unsigned long long int), cudaMemcpyDeviceToHost);
+	res.r = static_cast<long>(r);
+	res.b = static_cast<long>(b);
+	res.t = static_cast<long>(t);
 	cudaFree(d_r);
 	cudaFree(d_b);
 	cudaFree(d_t);
