@@ -7,18 +7,12 @@
 #include <cuda.h>
 #include <curand.h>
 #include <curand_kernel.h>
-#include <thrust/remove.h>
-
-#if __has_include ( "thrust/device_ptr.h" )
-#include <thrust/device_ptr.h>
-#endif
 
 #include "neutron.h"
 
 #include <utility>
 #include <chrono>
-
-#include <stdio.h>
+#include <iostream>
 
 #include "neutron_gpu_kernel.h"
 
@@ -48,13 +42,20 @@ ExperimentalResults neutron_gpu_caller(float* absorbed, long n,
 	cudaMalloc((void**)&d_params, sizeof(ProblemParameters));
 	cudaMemcpy(d_params, &params, sizeof(ProblemParameters), cudaMemcpyHostToDevice);
 
+	unsigned long long int* d_next_absorbed;
+	cudaMalloc((void**)&d_next_absorbed, sizeof(unsigned long long int));
+	cudaMemset(d_next_absorbed, 0, sizeof(unsigned long long int));
+
 	float* d_absorbed;
 	cudaMalloc((void**)&d_absorbed, n*sizeof(float));
 
-	long* d_r, * d_b, * d_t;
-	cudaMalloc((void**)&d_r, threads*sizeof(long));
-	cudaMalloc((void**)&d_b, threads*sizeof(long));
-	cudaMalloc((void**)&d_t, threads*sizeof(long));
+	unsigned long long int* d_r, * d_b, * d_t;
+	cudaMalloc((void**)&d_r, sizeof(unsigned long long int));
+	cudaMalloc((void**)&d_b, sizeof(unsigned long long int));
+	cudaMalloc((void**)&d_t, sizeof(unsigned long long int));
+	cudaMemset(d_r, 0, sizeof(unsigned long long int));
+	cudaMemset(d_b, 0, sizeof(unsigned long long int));
+	cudaMemset(d_t, 0, sizeof(unsigned long long int));
 
 	curandState* d_states;
 	cudaMalloc((void**)&d_states, threads*sizeof(curandState));
@@ -68,25 +69,22 @@ ExperimentalResults neutron_gpu_caller(float* absorbed, long n,
 	std::cout << "Mémoire utilisée: " << (n*4.)/(1024.*1024.) << "Mo" << std::endl;
 
 	auto t3 = system_clock::now();
-	neutron_seq_kernel<<<nthreads, nblocs>>>(n, neutronsPerThread, d_params, d_absorbed,
+	neutron_gpu_kernel<<<nthreads, nblocs>>>(n, neutronsPerThread, d_params,
+																					 d_next_absorbed, d_absorbed,
 																					 d_r, d_b, d_t, d_seeds, d_states);
-	cudaFree(d_seeds);
-
-	// reductions
-	thrust::remove_if(thrust::device_ptr<float>(d_absorbed),
-										thrust::device_ptr<float>(d_absorbed) + n,
-										thrust::placeholders::_1 == NO_VAL);
-
-	ExperimentalResults res;
-	res.r = thrust::reduce(thrust::device, d_r, d_r + threads);
-	res.b = thrust::reduce(thrust::device, d_b, d_b + threads);
-	res.t = thrust::reduce(thrust::device, d_t, d_t + threads);
 
 	// retrieving results
 	cudaDeviceSynchronize();
 	auto t4 = system_clock::now();
-	std::cout << "Temps du kernel + reductions: " << std::chrono::duration_cast<milliseconds>(t4 - t3).count()/1000. << " sec" << std::endl;
+	std::cout << "Temps du kernel: " << std::chrono::duration_cast<milliseconds>(t4 - t3).count()/1000. << " sec" << std::endl;
 
+	cudaFree(d_next_absorbed),
+	cudaFree(d_seeds);
+
+	ExperimentalResults res;
+	cudaMemcpy(&res.r, d_r, sizeof(unsigned long long int), cudaMemcpyDeviceToHost);
+	cudaMemcpy(&res.b, d_b, sizeof(unsigned long long int), cudaMemcpyDeviceToHost);
+	cudaMemcpy(&res.t, d_t, sizeof(unsigned long long int), cudaMemcpyDeviceToHost);
 	cudaFree(d_r);
 	cudaFree(d_b);
 	cudaFree(d_t);
@@ -96,8 +94,10 @@ ExperimentalResults neutron_gpu_caller(float* absorbed, long n,
 
 	t1 = system_clock::now();
 	res.absorbed = absorbed;
+
 	cudaMemcpy(res.absorbed, d_absorbed, res.b*sizeof(float), cudaMemcpyDeviceToHost);
 	cudaFree(d_absorbed);
+
 	t2 = system_clock::now();
 	std::cout << "Temps de la copie GPU -> CPU: " << std::chrono::duration_cast<milliseconds>(t2 - t1).count()/1000. << " sec" << std::endl;
 

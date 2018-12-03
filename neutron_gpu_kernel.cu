@@ -1,15 +1,22 @@
 #include "neutron_gpu_kernel.h"
 
 #include <cuda.h>
+#include <cooperative_groups.h>
+
+// The global atomics are supposed to be optimized by compiler (>= CUDA 9)
+// https://devblogs.nvidia.com/cuda-pro-tip-optimized-filtering-warp-aggregated-atomics
+
+using namespace cooperative_groups;
 
 __global__
-void neutron_seq_kernel(long n,
+void neutron_gpu_kernel(long n,
 												int neutronsPerThread,
 												const ProblemParameters* params,
+												unsigned long long int* next_absorbed,
 												float* absorbed,
-												long* d_r,
-												long* d_b,
-												long* d_t,
+												unsigned long long int* d_r,
+												unsigned long long int* d_b,
+												unsigned long long int* d_t,
 												unsigned long long* seeds,
 												curandState* states) {
 	const long id = blockIdx.x*blockDim.x + threadIdx.x;
@@ -19,9 +26,10 @@ void neutron_seq_kernel(long n,
 	const float c = params->c;
 	const float c_c = params->c_c;
 	const float h = params->h;
-	long r = 0, b = 0, t = 0;
+	unsigned long long int r = 0, b = 0, t = 0;
 
-	long cpt = (blockIdx.x*blockDim.x)*neutronsPerThread + threadIdx.x;
+	long cpt = (blockIdx.x*blockDim.x + threadIdx.x)*neutronsPerThread;
+	auto g = coalesced_threads();
 	for (long i=0; i<neutronsPerThread; i++) {
 		if (!(cpt < n))
 			break;
@@ -56,10 +64,17 @@ void neutron_seq_kernel(long n,
 				d = u * M_PI;
 			}
 		}
-		absorbed[cpt+=blockDim.x] = v;
+		unsigned long long int pos;
+		if(g.thread_rank() == 0)
+			pos = atomicAdd(next_absorbed, g.size());
+
+		if (v != NO_VAL) {
+			absorbed[g.shfl(pos, 0) + g.thread_rank()] = v;
+		}
+		cpt++;
 	}
 
-	d_r[id] = r;
-	d_b[id] = b;
-	d_t[id] = t;
+	atomicAdd(d_r, r);
+	atomicAdd(d_b, b);
+	atomicAdd(d_t, t);
 }
