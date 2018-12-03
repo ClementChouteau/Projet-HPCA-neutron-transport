@@ -54,5 +54,27 @@ test: clean
 	./bin/neutron-gpu 1.0 500000000 0.5 0.5 | grep "TEST"
 	./bin/neutron-hybrid 1.0 500000000 0.5 0.5 32 20000 0.1 | grep "TEST"
 
+omp_bench: neutron-omp
+	./bin/neutron-omp 1.0 500000000 0.1 0.9 32 20000 | grep Millions
+	./bin/neutron-omp 1.0 500000000 0.2 0.8 32 20000 | grep Millions
+	./bin/neutron-omp 1.0 500000000 0.3 0.7 32 20000 | grep Millions
+	./bin/neutron-omp 1.0 500000000 0.4 0.6 32 20000 | grep Millions
+	./bin/neutron-omp 1.0 500000000 0.5 0.5 32 20000 | grep Millions
+	./bin/neutron-omp 1.0 500000000 0.6 0.4 32 20000 | grep Millions
+	./bin/neutron-omp 1.0 500000000 0.7 0.3 32 20000 | grep Millions
+	./bin/neutron-omp 1.0 500000000 0.8 0.2 32 20000 | grep Millions
+	./bin/neutron-omp 1.0 500000000 0.9 0.1 32 20000 | grep Millions
+
+gpu_bench: neutron-gpu
+	./bin/neutron-gpu 1.0 500000000 0.1 0.9 32 20000 | grep Millions
+	./bin/neutron-gpu 1.0 500000000 0.2 0.8 32 20000 | grep Millions
+	./bin/neutron-gpu 1.0 500000000 0.3 0.7 32 20000 | grep Millions
+	./bin/neutron-gpu 1.0 500000000 0.4 0.6 32 20000 | grep Millions
+	./bin/neutron-gpu 1.0 500000000 0.5 0.5 32 20000 | grep Millions
+	./bin/neutron-gpu 1.0 500000000 0.6 0.4 32 20000 | grep Millions
+	./bin/neutron-gpu 1.0 500000000 0.7 0.3 32 20000 | grep Millions
+	./bin/neutron-gpu 1.0 500000000 0.8 0.2 32 20000 | grep Millions
+	./bin/neutron-gpu 1.0 500000000 0.9 0.1 32 20000 | grep Millions
+
 clean:
 	rm -f bin/* obj/*.o *~
