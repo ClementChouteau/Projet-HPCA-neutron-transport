@@ -1,7 +1,7 @@
 # [HPCA] Projet : transport de neutron
 ### Clément Chouteau
 
-[Lien vers les slides de la présentation de la partie 1](NOT YET)
+[Lien vers les slides de la présentation de la partie 1](https://www.overleaf.com/read/ctsmpdsfxnjx)
 
 ## Compiler
 
