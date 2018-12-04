@@ -20,4 +20,6 @@ for version in ["./bin/neutron-omp", "./bin/neutron-gpu"]:
 	M = float(temps_re.search(out).group(1))
 	Million_per_sec[version] = M
 
-print(Million_per_sec["./bin/neutron-omp"]/Million_per_sec["./bin/neutron-gpu"])
+v_omp = Million_per_sec["./bin/neutron-omp"]
+v_gpu = Million_per_sec["./bin/neutron-gpu"]
+print(v_omp/(v_omp+v_gpu))
