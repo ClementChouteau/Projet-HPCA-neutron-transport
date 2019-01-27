@@ -7,6 +7,7 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
+#include <string>
 
 #ifdef SAVE
 #include <fstream>
@@ -17,10 +18,14 @@
 #include "neutron_seq.h"
 #elif defined (NEUTRON_OMP)
 #include "neutron_omp.h"
-#elif defined (NEUTRON_GPU)
+#elif defined (NEUTRON_CUD)
 #include "neutron_gpu.h"
 #elif defined (NEUTRON_HYB)
 #include "neutron_hybrid.h"
+#elif defined (NEUTRON_OCL)
+#include "neutron_gpu.h"
+#elif defined (NEUTRON_MPI)
+#include "neutron_mpi.h"
 #endif
 
 using namespace std::chrono;
@@ -30,7 +35,7 @@ using namespace std::chrono;
 const static char info[] =
 		"\
 		Usage:\n\
-		neutron-seq H Nb C_c C_s\n\
+		neutron-seq H Nb C_c C_s r\n\
 		\n\
 		H  : épaisseur de la plaque\n\
 		Nb : nombre d'échantillons\n\
@@ -38,9 +43,10 @@ const static char info[] =
 		C_s: componente diffusante\n\
 		(t): neutrons par thread\n\
 		(b): threads par block\n\
+		(r): CPU/GPU ratio\n\
 		\n\
 		Exemple d'execution : \n\
-		neutron-seq 1.0 500000000 0.5 0.5 32 10000\n\
+		neutron-hyb 1.0 500000000 0.5 0.5 32 10000 0.5\n\
 		"
 ;
 
@@ -67,6 +73,8 @@ int main(int argc, char *argv[]) {
 	float ratio = 1.0;
 	(void) ratio;
 
+	std::string oclDeviceType;
+
 	// Retrieving parameters
 	if (argc > 1) params.h = std::atof(argv[1]);
 	if (argc > 2) n = std::atol(argv[2]);
@@ -74,7 +82,11 @@ int main(int argc, char *argv[]) {
 	if (argc > 4) params.c_s = std::atof(argv[4]);
 	if (argc > 5) threadsPerBlock = std::atoi(argv[5]);
 	if (argc > 6) neutronsPerThread = std::atoi(argv[6]);
+#if   defined (NEUTRON_HYB) || defined (NEUTRON_MPI)
 	if (argc > 7) ratio = std::atof(argv[7]);
+#elif defined (NEUTRON_OCL)
+	if (argc > 7) oclDeviceType = std::string(argv[7]);
+#endif
 
 	params.c = params.c_c + params.c_s;
 
@@ -94,24 +106,30 @@ int main(int argc, char *argv[]) {
 	const ExperimentalResults res = neutron_seq(absorbed.data(), n, params);
 #elif defined (NEUTRON_OMP)
 	const ExperimentalResults res = neutron_omp(absorbed.data(), n, params);
-#elif defined (NEUTRON_GPU)
+#elif defined (NEUTRON_CUD)
 	const ExperimentalResults res = neutron_gpu(absorbed.data(), n, params, threadsPerBlock, neutronsPerThread);
 #elif defined (NEUTRON_HYB)
 	const ExperimentalResults res = neutron_hybrid(absorbed.data(), n, params, threadsPerBlock, neutronsPerThread, ratio);
+#elif defined (NEUTRON_OCL)
+	const ExperimentalResults res = neutron_gpu(absorbed.data(), n, params, threadsPerBlock, neutronsPerThread, oclDeviceType);
+#elif defined (NEUTRON_MPI)
+	const ExperimentalResults res = neutron_mpi(absorbed.data(), n, params, threadsPerBlock, neutronsPerThread, 10000000);
 #endif
 	const auto finish = system_clock::now();
 
 #ifdef TEST
 	long b = n - std::count(absorbed.begin(), absorbed.end(), NO_VAL);
-	if (b != res.b) {
+	if (res.r+res.b+res.t != n || b != res.b) {
 		std::cout << "TEST FAILURE" << std::endl;
 		exit(1);
 	}
 	std::cout << "TEST SUCESS" << std::endl;
 #endif
 
-	if (res.r+res.b+res.t != n)
+	if (res.r+res.b+res.t != n) {
+		std::cerr << "Wrong results : r=" << res.r << ", b=" << res.b << ", t=" << res.t << ", r+b+t=" << (res.r+res.b+res.t) << " != " << n << std::endl;
 		exit(1);
+	}
 
 	std::cout << std::endl;
 	std::cout << "Pourcentage des neutrons refléchis : " << (double) res.r / (double) n << std::endl;

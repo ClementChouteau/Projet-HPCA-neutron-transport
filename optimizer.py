@@ -42,6 +42,9 @@ for threadsPerBlock in range(32, 192, 32):
 		except:
 			pass
 		finally:
-			timer.cancel()
+			try:
+				timer.cancel()
+			except:
+				pass
 
 print(best)

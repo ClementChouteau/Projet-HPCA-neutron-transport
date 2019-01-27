@@ -2,18 +2,21 @@
 ### Clément Chouteau
 
 [Lien vers les slides de la présentation de la partie 1](https://www.overleaf.com/read/ctsmpdsfxnjx)
+[Lien vers le rapport de la partie 2](https://www.overleaf.com/read/zfzmqbhfyzxq)
 
 ## Compiler
 
 - `make ` : compile toutes les versions.
 - `make neutron-seq` : compile la version séquentielle CPU.
 - `make neutron-omp` : compile la version multithread CPU, utilise OpenMP.
-- `make neutron-gpu` : compile la version parallèle GPU, utilise CUDA.
+- `make neutron-cud` : compile la version parallèle GPU, utilise CUDA.
 - `make neutron-hyb` : compile la version hybride OpenMP + CUDA.
+- `make neutron-ocl` : compile la version hybride OpenCL (gère le GPU ou CPU).
+- `make neutron-mpi` : compile la version multi noeuds MPI/CUD.
 
 ## Autres options du Makefile
 
-- `make test` : compile toutes les versions et execute les tests.
+- `make test` : compile toutes les versions et execute les tests, doit afficher TEST SUCESS pour chaque version.
 - `make save` : compile toutes les versions avec enregistrement du résultat.
 - `make clean` : efface tous les binaires.
 

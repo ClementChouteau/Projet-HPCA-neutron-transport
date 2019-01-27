@@ -15,7 +15,10 @@ typedef struct {
 
 typedef struct {
 	// nombre de neutrons refléchis, absorbés et transmis
-	long r, b, t;
+	// Warning: r,b,t are assumed in order (MPI version)
+	long r;
+	long b;
+	long t;
 
 	float *absorbed;
 } ExperimentalResults;
